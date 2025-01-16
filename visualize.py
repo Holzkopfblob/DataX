@@ -9,7 +9,10 @@ st.title("Green Deal Data Explorer")
 try:
     # CSV-Datei laden
     DATA_URL = "green_deal_data.csv"
-    df = pd.read_csv(DATA_URL, parse_dates=["datetime"])
+    df = pd.read_csv(DATA_URL)
+
+    # Sicherstellen, dass die datetime-Spalte korrekt formatiert ist
+    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
     st.success("Daten erfolgreich geladen!")
 except Exception as e:
     st.error("Fehler beim Laden der Daten. Bitte überprüfen Sie die Datei.")
@@ -47,8 +50,12 @@ else:
 
     # Verhältnis zu allen Artikeln als zweite Y-Achse
     ax2 = ax1.twinx()
-    ax2.plot(filtered_df["datetime"], filtered_df["Article Count"] / filtered_df["All Articles"], 
-             label="Verhältnis Artikel / Alle Artikel", color="green")
+    ax2.plot(
+        filtered_df["datetime"],
+        filtered_df["Article Count"] / filtered_df["All Articles"],
+        label="Verhältnis Artikel / Alle Artikel",
+        color="green",
+    )
     ax2.set_ylabel("Verhältnis", color="green")
     ax2.tick_params(axis="y", labelcolor="green")
 
