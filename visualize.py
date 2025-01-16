@@ -2,13 +2,26 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Daten laden
-data_path = "data/raw/green_deal_data.csv"
-df = pd.read_csv(data_path)
+# GitHub-RAW-URL zur CSV-Datei
+github_csv_url = "https://raw.githubusercontent.com/Holzkopfblob/DataX/main/green_deal_data.csv"
 
-# Daten vorbereiten
-df['datetime'] = pd.to_datetime(df['datetime'])
-df['Article Ratio'] = df['Article Count'] / df['All Articles']
+# Daten laden
+@st.cache_data
+def load_data(url):
+    try:
+        df = pd.read_csv(url)
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df['Article Ratio'] = df['Article Count'] / df['All Articles']
+        return df
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Daten: {e}")
+        return pd.DataFrame()
+
+df = load_data(github_csv_url)
+
+# Überprüfen, ob Daten erfolgreich geladen wurden
+if df.empty:
+    st.stop()
 
 # Titel und Sidebar
 st.title("Green Deal Datenanalyse")
