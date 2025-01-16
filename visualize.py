@@ -2,75 +2,67 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Titel der App
-st.title("Green Deal Data Explorer")
+# Datei laden und sicherstellen, dass "datetime" korrekt formatiert ist
+@st.cache_data
+def load_data():
+    df = pd.read_csv("green_deal_data.csv", sep="\t")  # Tab-Separierung beachten
+    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")  # Datetime-Konvertierung
+    df["datetime"] = df["datetime"].dt.tz_localize(None)  # Zeitzone entfernen
+    return df
 
 # Daten laden
-try:
-    # CSV-Datei laden
-    DATA_URL = "green_deal_data.csv"
-    df = pd.read_csv(DATA_URL)
+df = load_data()
 
-    # Sicherstellen, dass die datetime-Spalte korrekt formatiert ist
-    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
-    st.success("Daten erfolgreich geladen!")
-except Exception as e:
-    st.error("Fehler beim Laden der Daten. Bitte überprüfen Sie die Datei.")
-    st.stop()
-
-# Benutzeroptionen
+# Sidebar-Einstellungen
 st.sidebar.header("Filtereinstellungen")
-keywords = st.sidebar.multiselect(
-    "Wähle Keywords:",
-    options=df["keyword"].unique(),
-    default=df["keyword"].unique()
-)
 date_range = st.sidebar.date_input(
     "Wähle den Zeitraum:",
-    [df["datetime"].min(), df["datetime"].max()]
+    value=(df["datetime"].min(), df["datetime"].max()),
+    min_value=df["datetime"].min(),
+    max_value=df["datetime"].max(),
 )
 
-# Daten filtern
-filtered_df = df[(df["keyword"].isin(keywords)) & (df["datetime"].between(*date_range))]
+# Filter anwenden
+filtered_df = df[df["datetime"].between(pd.Timestamp(date_range[0]), pd.Timestamp(date_range[1]))]
+
+# Zusätzliche Analyse-Optionen
+analysis_option = st.sidebar.selectbox(
+    "Wähle die Datenanalyse:",
+    [
+        "Artikelanzahl im Zeitverlauf",
+        "Artikelanzahl im Verhältnis zu allen Artikeln",
+    ],
+)
 
 # Visualisierungen
-st.subheader("Artikelvolumen im Zeitverlauf")
+st.title("Green Deal Data Explorer")
+st.success("Daten erfolgreich geladen!")
+
 if filtered_df.empty:
-    st.warning("Keine Daten verfügbar für die aktuellen Filtereinstellungen.")
+    st.warning("Keine Daten im ausgewählten Zeitraum.")
 else:
-    # Plot erstellen
-    fig, ax1 = plt.subplots(figsize=(10, 6))
+    if analysis_option == "Artikelanzahl im Zeitverlauf":
+        # Artikelanzahl im Zeitverlauf
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
+        ax.set_title("Artikelanzahl im Zeitverlauf")
+        ax.set_xlabel("Datum")
+        ax.set_ylabel("Artikelanzahl")
+        ax.legend()
+        ax.grid(True)
+        st.pyplot(fig)
 
-    # Artikeldaten plotten
-    ax1.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
-    ax1.set_xlabel("Datum")
-    ax1.set_ylabel("Artikelanzahl", color="blue")
-    ax1.tick_params(axis="y", labelcolor="blue")
-    ax1.grid(True)
+    elif analysis_option == "Artikelanzahl im Verhältnis zu allen Artikeln":
+        # Artikelanzahl im Verhältnis zu allen Artikeln
+        filtered_df["relative_articles"] = filtered_df["Article Count"] / filtered_df["All Articles"]
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(filtered_df["datetime"], filtered_df["relative_articles"], label="Relativer Anteil", color="green")
+        ax.set_title("Relativer Anteil der Artikel im Zeitverlauf")
+        ax.set_xlabel("Datum")
+        ax.set_ylabel("Anteil der Artikel")
+        ax.legend()
+        ax.grid(True)
+        st.pyplot(fig)
 
-    # Verhältnis zu allen Artikeln als zweite Y-Achse
-    ax2 = ax1.twinx()
-    ax2.plot(
-        filtered_df["datetime"],
-        filtered_df["Article Count"] / filtered_df["All Articles"],
-        label="Verhältnis Artikel / Alle Artikel",
-        color="green",
-    )
-    ax2.set_ylabel("Verhältnis", color="green")
-    ax2.tick_params(axis="y", labelcolor="green")
-
-    fig.tight_layout()
-    st.pyplot(fig)
-
-# Datenübersicht anzeigen
-st.subheader("Gefilterte Daten")
-st.write(filtered_df)
-
-# Download-Option für gefilterte Daten
-csv = filtered_df.to_csv(index=False).encode("utf-8")
-st.download_button(
-    label="Gefilterte Daten herunterladen",
-    data=csv,
-    file_name="filtered_green_deal_data.csv",
-    mime="text/csv",
-)
+# Footer
+st.sidebar.markdown("Datenquelle: Green Deal Data Explorer")
