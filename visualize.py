@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 @st.cache_data
 def load_data():
     df = pd.read_csv("green_deal_data.csv", sep="\t")  # Tab-Separierung beachten
+    if "datetime" not in df.columns:
+        st.error("Die Spalte 'datetime' fehlt in der CSV-Datei.")
+        st.stop()
     df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")  # Datetime-Konvertierung
     df["datetime"] = df["datetime"].dt.tz_localize(None)  # Zeitzone entfernen
     return df
