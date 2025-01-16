@@ -5,7 +5,16 @@ import matplotlib.pyplot as plt
 # Load data
 @st.cache
 def load_data():
+    # Load the CSV file
     df = pd.read_csv("green_deal_data.csv")
+
+    # Standardize column names
+    df.columns = df.columns.str.strip()  # Remove any leading/trailing spaces
+    if "datetime" not in df.columns:
+        st.error("Die Spalte 'datetime' fehlt in den Daten. Überprüfen Sie die CSV-Datei.")
+        st.stop()
+
+    # Convert datetime column
     df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
     return df
 
