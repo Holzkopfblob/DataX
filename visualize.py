@@ -1,50 +1,48 @@
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import os
 
-# Verzeichnisse festlegen
-base_dir = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(base_dir, "data", "raw", "green_deal_data.csv")
-output_dir = os.path.join(base_dir, "data", "outputs")
-os.makedirs(output_dir, exist_ok=True)
-
-# CSV-Datei laden
+# Daten laden
+data_path = "data/raw/green_deal_data.csv"
 df = pd.read_csv(data_path)
 
-# Spaltennamen prüfen und konvertieren
-required_columns = ['datetime', 'Article Count', 'All Articles']
-for col in required_columns:
-    if col not in df.columns:
-        raise ValueError(f"Die Spalte '{col}' fehlt in der CSV-Datei.")
-
+# Daten vorbereiten
 df['datetime'] = pd.to_datetime(df['datetime'])
-
-# Diagramm 1: Artikelanzahl im Zeitverlauf
-plt.figure(figsize=(12, 6))
-plt.plot(df['datetime'], df['Article Count'], label="Artikelanzahl", color="blue")
-plt.title("Artikelanzahl im Zeitverlauf (Green Deal)")
-plt.xlabel("Datum")
-plt.ylabel("Artikelanzahl")
-plt.legend()
-plt.grid(True)
-output_file_1 = os.path.join(output_dir, "green_deal_article_count_timeline.png")
-plt.savefig(output_file_1)
-plt.show()
-
-print(f"Diagramm 1 gespeichert unter: {output_file_1}")
-
-# Diagramm 2: Verhältnis von Artikeln zu allen Artikeln im Zeitverlauf
 df['Article Ratio'] = df['Article Count'] / df['All Articles']
 
-plt.figure(figsize=(12, 6))
-plt.plot(df['datetime'], df['Article Ratio'], label="Artikelanteil (%)", color="green")
-plt.title("Artikelanteil im Verhältnis zu allen Artikeln im Zeitverlauf (Green Deal)")
-plt.xlabel("Datum")
-plt.ylabel("Artikelanteil (%)")
-plt.legend()
-plt.grid(True)
-output_file_2 = os.path.join(output_dir, "green_deal_article_ratio_timeline.png")
-plt.savefig(output_file_2)
-plt.show()
+# Titel und Sidebar
+st.title("Green Deal Datenanalyse")
+st.sidebar.header("Filteroptionen")
 
-print(f"Diagramm 2 gespeichert unter: {output_file_2}")
+# Zeitbereich filtern
+start_date = st.sidebar.date_input("Startdatum", value=df['datetime'].min().date())
+end_date = st.sidebar.date_input("Enddatum", value=df['datetime'].max().date())
+df_filtered = df[(df['datetime'] >= pd.Timestamp(start_date)) & (df['datetime'] <= pd.Timestamp(end_date))]
+
+# Diagramm 1: Artikelanzahl
+st.header("Artikelanzahl im Zeitverlauf")
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(df_filtered['datetime'], df_filtered['Article Count'], label="Artikelanzahl", color="blue")
+ax.set_title("Artikelanzahl im Zeitverlauf")
+ax.set_xlabel("Datum")
+ax.set_ylabel("Anzahl")
+ax.grid(True)
+st.pyplot(fig)
+
+# Diagramm 2: Verhältnis Artikel zu allen Artikeln
+st.header("Verhältnis Artikel zu allen Artikeln")
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(df_filtered['datetime'], df_filtered['Article Ratio'], label="Artikelanteil", color="green")
+ax.set_title("Artikelanteil im Verhältnis zu allen Artikeln")
+ax.set_xlabel("Datum")
+ax.set_ylabel("Anteil")
+ax.grid(True)
+st.pyplot(fig)
+
+# Datentabelle anzeigen
+st.header("Gefilterte Daten")
+st.dataframe(df_filtered)
+
+# Download der Daten
+csv_download = df_filtered.to_csv(index=False).encode('utf-8')
+st.download_button(label="Daten als CSV herunterladen", data=csv_download, file_name="filtered_data.csv", mime="text/csv")
