@@ -2,60 +2,68 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# GitHub-RAW-URL zur CSV-Datei
-github_csv_url = "https://raw.githubusercontent.com/Holzkopfblob/DataX/main/green_deal_data.csv"
+# Titel der App
+st.title("Green Deal Data Explorer")
 
 # Daten laden
-@st.cache_data
-def load_data(url):
-    try:
-        df = pd.read_csv(url)
-        df['datetime'] = pd.to_datetime(df['datetime'])
-        df['Article Ratio'] = df['Article Count'] / df['All Articles']
-        return df
-    except Exception as e:
-        st.error(f"Fehler beim Laden der Daten: {e}")
-        return pd.DataFrame()
-
-df = load_data(github_csv_url)
-
-# Überprüfen, ob Daten erfolgreich geladen wurden
-if df.empty:
+try:
+    # CSV-Datei laden
+    DATA_URL = "green_deal_data.csv"
+    df = pd.read_csv(DATA_URL, parse_dates=["datetime"])
+    st.success("Daten erfolgreich geladen!")
+except Exception as e:
+    st.error("Fehler beim Laden der Daten. Bitte überprüfen Sie die Datei.")
     st.stop()
 
-# Titel und Sidebar
-st.title("Green Deal Datenanalyse")
-st.sidebar.header("Filteroptionen")
+# Benutzeroptionen
+st.sidebar.header("Filtereinstellungen")
+keywords = st.sidebar.multiselect(
+    "Wähle Keywords:",
+    options=df["keyword"].unique(),
+    default=df["keyword"].unique()
+)
+date_range = st.sidebar.date_input(
+    "Wähle den Zeitraum:",
+    [df["datetime"].min(), df["datetime"].max()]
+)
 
-# Zeitbereich filtern
-start_date = st.sidebar.date_input("Startdatum", value=df['datetime'].min().date())
-end_date = st.sidebar.date_input("Enddatum", value=df['datetime'].max().date())
-df_filtered = df[(df['datetime'] >= pd.Timestamp(start_date)) & (df['datetime'] <= pd.Timestamp(end_date))]
+# Daten filtern
+filtered_df = df[(df["keyword"].isin(keywords)) & (df["datetime"].between(*date_range))]
 
-# Diagramm 1: Artikelanzahl
-st.header("Artikelanzahl im Zeitverlauf")
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(df_filtered['datetime'], df_filtered['Article Count'], label="Artikelanzahl", color="blue")
-ax.set_title("Artikelanzahl im Zeitverlauf")
-ax.set_xlabel("Datum")
-ax.set_ylabel("Anzahl")
-ax.grid(True)
-st.pyplot(fig)
+# Visualisierungen
+st.subheader("Artikelvolumen im Zeitverlauf")
+if filtered_df.empty:
+    st.warning("Keine Daten verfügbar für die aktuellen Filtereinstellungen.")
+else:
+    # Plot erstellen
+    fig, ax1 = plt.subplots(figsize=(10, 6))
 
-# Diagramm 2: Verhältnis Artikel zu allen Artikeln
-st.header("Verhältnis Artikel zu allen Artikeln")
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(df_filtered['datetime'], df_filtered['Article Ratio'], label="Artikelanteil", color="green")
-ax.set_title("Artikelanteil im Verhältnis zu allen Artikeln")
-ax.set_xlabel("Datum")
-ax.set_ylabel("Anteil")
-ax.grid(True)
-st.pyplot(fig)
+    # Artikeldaten plotten
+    ax1.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
+    ax1.set_xlabel("Datum")
+    ax1.set_ylabel("Artikelanzahl", color="blue")
+    ax1.tick_params(axis="y", labelcolor="blue")
+    ax1.grid(True)
 
-# Datentabelle anzeigen
-st.header("Gefilterte Daten")
-st.dataframe(df_filtered)
+    # Verhältnis zu allen Artikeln als zweite Y-Achse
+    ax2 = ax1.twinx()
+    ax2.plot(filtered_df["datetime"], filtered_df["Article Count"] / filtered_df["All Articles"], 
+             label="Verhältnis Artikel / Alle Artikel", color="green")
+    ax2.set_ylabel("Verhältnis", color="green")
+    ax2.tick_params(axis="y", labelcolor="green")
 
-# Download der Daten
-csv_download = df_filtered.to_csv(index=False).encode('utf-8')
-st.download_button(label="Daten als CSV herunterladen", data=csv_download, file_name="filtered_data.csv", mime="text/csv")
+    fig.tight_layout()
+    st.pyplot(fig)
+
+# Datenübersicht anzeigen
+st.subheader("Gefilterte Daten")
+st.write(filtered_df)
+
+# Download-Option für gefilterte Daten
+csv = filtered_df.to_csv(index=False).encode("utf-8")
+st.download_button(
+    label="Gefilterte Daten herunterladen",
+    data=csv,
+    file_name="filtered_green_deal_data.csv",
+    mime="text/csv",
+)
