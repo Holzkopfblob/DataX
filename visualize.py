@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 def load_data():
-    # Absoluten Pfad zur CSV-Datei basierend auf dem Skriptverzeichnis ermitteln
+    # Absoluter Pfad zur CSV-Datei basierend auf dem Skriptverzeichnis
     script_dir = os.path.dirname(os.path.abspath(__file__))
     csv_path = os.path.join(script_dir, "green_deal_data.csv")
 
@@ -26,24 +26,22 @@ df = load_data()
 st.success("Daten erfolgreich geladen!")
 
 # Visualisierungsoptionen
-option = st.sidebar.selectbox(
-    "Wähle die Visualisierungsart:",
-    ["Artikel im Zeitverlauf", "Artikel im Verhältnis zu allen Artikeln"]
+st.header("Datenanalyse")
+
+# Filter anwenden
+date_range = st.sidebar.date_input(
+    "Wähle den Zeitraum:",
+    [df["datetime"].min(), df["datetime"].max()]
 )
+filtered_df = df[df["datetime"].between(*pd.to_datetime(date_range))]
 
-# Filtereinstellungen
-start_date = st.sidebar.date_input("Startdatum", df["datetime"].min().date())
-end_date = st.sidebar.date_input("Enddatum", df["datetime"].max().date())
+# Artikelvolumen im Zeitverlauf
+st.subheader("Artikelvolumen im Zeitverlauf")
+st.line_chart(filtered_df.set_index("datetime")["Article Count"])
 
-# Daten filtern
-filtered_df = df[(df["datetime"] >= pd.Timestamp(start_date)) & (df["datetime"] <= pd.Timestamp(end_date))]
+# Verhältnis von Artikeln zu allen Artikeln
+st.subheader("Artikelverhältnis (Artikel zu allen Artikeln)")
+filtered_df["Ratio"] = filtered_df["Article Count"] / filtered_df["All Articles"]
+st.line_chart(filtered_df.set_index("datetime")["Ratio"])
 
-# Visualisierung erstellen
-if option == "Artikel im Zeitverlauf":
-    st.subheader("Artikel im Zeitverlauf")
-    st.line_chart(data=filtered_df.set_index("datetime")["Article Count"], use_container_width=True)
-
-elif option == "Artikel im Verhältnis zu allen Artikeln":
-    st.subheader("Artikel im Verhältnis zu allen Artikeln")
-    filtered_df["Ratio"] = filtered_df["Article Count"] / filtered_df["All Articles"]
-    st.line_chart(data=filtered_df.set_index("datetime")["Ratio"], use_container_width=True)
+st.write("Datenquelle: GDELT API")
