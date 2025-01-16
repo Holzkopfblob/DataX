@@ -6,16 +6,26 @@ import matplotlib.pyplot as plt
 @st.cache
 def load_data():
     # Load the CSV file
-    df = pd.read_csv("green_deal_data.csv")
-
-    # Standardize column names
-    df.columns = df.columns.str.strip()  # Remove any leading/trailing spaces
-    if "datetime" not in df.columns:
-        st.error("Die Spalte 'datetime' fehlt in den Daten. Überprüfen Sie die CSV-Datei.")
+    try:
+        df = pd.read_csv("green_deal_data.csv")
+    except FileNotFoundError:
+        st.error("Die Datei 'green_deal_data.csv' wurde nicht gefunden. Bitte überprüfen Sie den Dateipfad.")
+        st.stop()
+    
+    # Check column names
+    st.write("CSV-Spaltennamen:", df.columns.tolist())
+    required_columns = {"datetime", "Article Count", "All Articles", "keyword"}
+    missing_columns = required_columns - set(df.columns)
+    if missing_columns:
+        st.error(f"Fehlende Spalten in der CSV-Datei: {', '.join(missing_columns)}. Bitte korrigieren Sie die Datei.")
         st.stop()
 
     # Convert datetime column
     df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+    if df["datetime"].isna().all():
+        st.error("Die Spalte 'datetime' konnte nicht in ein gültiges Datumsformat konvertiert werden. Bitte überprüfen Sie die Daten.")
+        st.stop()
+
     return df
 
 df = load_data()
