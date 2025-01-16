@@ -1,68 +1,49 @@
-import streamlit as st
+import os
 import pandas as pd
-import matplotlib.pyplot as plt
+import streamlit as st
 
-# Load data
-@st.cache
 def load_data():
-    # Load the CSV file
-    try:
-        df = pd.read_csv("green_deal_data.csv")
-    except FileNotFoundError:
-        st.error("Die Datei 'green_deal_data.csv' wurde nicht gefunden. Bitte überprüfen Sie den Dateipfad.")
-        st.stop()
-    
-    # Check column names
-    st.write("CSV-Spaltennamen:", df.columns.tolist())
-    required_columns = {"datetime", "Article Count", "All Articles", "keyword"}
-    missing_columns = required_columns - set(df.columns)
-    if missing_columns:
-        st.error(f"Fehlende Spalten in der CSV-Datei: {', '.join(missing_columns)}. Bitte korrigieren Sie die Datei.")
+    # Absoluten Pfad zur CSV-Datei basierend auf dem Skriptverzeichnis ermitteln
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, "green_deal_data.csv")
+
+    # Überprüfen, ob die Datei existiert
+    if not os.path.exists(csv_path):
+        st.error(f"Die Datei 'green_deal_data.csv' wurde nicht gefunden. Bitte stellen Sie sicher, dass sie im gleichen Verzeichnis wie dieses Skript liegt. (Gesuchter Pfad: {csv_path})")
         st.stop()
 
-    # Convert datetime column
-    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
-    if df["datetime"].isna().all():
-        st.error("Die Spalte 'datetime' konnte nicht in ein gültiges Datumsformat konvertiert werden. Bitte überprüfen Sie die Daten.")
-        st.stop()
-
+    # CSV-Datei laden
+    df = pd.read_csv(csv_path)
+    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")  # Datetime-Konvertierung
     return df
 
-df = load_data()
-
-# Sidebar filters
-st.sidebar.header("Filtereinstellungen")
-start_date, end_date = st.sidebar.date_input(
-    "Wähle den Zeitraum:",
-    [df["datetime"].min().date(), df["datetime"].max().date()],
-    min_value=df["datetime"].min().date(),
-    max_value=df["datetime"].max().date(),
-)
-
-# Filter data
-filtered_df = df[df["datetime"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))]
-
-# Main title
+# Streamlit-Anwendung
 st.title("Green Deal Data Explorer")
+st.sidebar.header("Filtereinstellungen")
+
+# Daten laden
+df = load_data()
 st.success("Daten erfolgreich geladen!")
 
-# Visualization 1: Articles over time
-st.header("Artikelanzahl im Zeitverlauf")
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
-ax.set_title("Artikelanzahl im Zeitverlauf")
-ax.set_xlabel("Datum")
-ax.set_ylabel("Anzahl der Artikel")
-ax.grid(True)
-st.pyplot(fig)
+# Visualisierungsoptionen
+option = st.sidebar.selectbox(
+    "Wähle die Visualisierungsart:",
+    ["Artikel im Zeitverlauf", "Artikel im Verhältnis zu allen Artikeln"]
+)
 
-# Visualization 2: Articles vs Total Articles Ratio
-st.header("Verhältnis der Artikelanzahl zur Gesamtartikelanzahl")
-filtered_df["Article Ratio"] = filtered_df["Article Count"] / filtered_df["All Articles"]
-fig2, ax2 = plt.subplots(figsize=(10, 6))
-ax2.plot(filtered_df["datetime"], filtered_df["Article Ratio"], label="Artikelverhältnis", color="green")
-ax2.set_title("Verhältnis der Artikelanzahl zur Gesamtartikelanzahl")
-ax2.set_xlabel("Datum")
-ax2.set_ylabel("Verhältnis")
-ax2.grid(True)
-st.pyplot(fig2)
+# Filtereinstellungen
+start_date = st.sidebar.date_input("Startdatum", df["datetime"].min().date())
+end_date = st.sidebar.date_input("Enddatum", df["datetime"].max().date())
+
+# Daten filtern
+filtered_df = df[(df["datetime"] >= pd.Timestamp(start_date)) & (df["datetime"] <= pd.Timestamp(end_date))]
+
+# Visualisierung erstellen
+if option == "Artikel im Zeitverlauf":
+    st.subheader("Artikel im Zeitverlauf")
+    st.line_chart(data=filtered_df.set_index("datetime")["Article Count"], use_container_width=True)
+
+elif option == "Artikel im Verhältnis zu allen Artikeln":
+    st.subheader("Artikel im Verhältnis zu allen Artikeln")
+    filtered_df["Ratio"] = filtered_df["Article Count"] / filtered_df["All Articles"]
+    st.line_chart(data=filtered_df.set_index("datetime")["Ratio"], use_container_width=True)
