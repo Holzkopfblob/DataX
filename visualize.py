@@ -2,70 +2,48 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Datei laden und sicherstellen, dass "datetime" korrekt formatiert ist
-@st.cache_data
+# Load data
+@st.cache
 def load_data():
-    df = pd.read_csv("green_deal_data.csv", sep="\t")  # Tab-Separierung beachten
-    if "datetime" not in df.columns:
-        st.error("Die Spalte 'datetime' fehlt in der CSV-Datei.")
-        st.stop()
-    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")  # Datetime-Konvertierung
-    df["datetime"] = df["datetime"].dt.tz_localize(None)  # Zeitzone entfernen
+    df = pd.read_csv("green_deal_data.csv")
+    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
     return df
 
-# Daten laden
 df = load_data()
 
-# Sidebar-Einstellungen
+# Sidebar filters
 st.sidebar.header("Filtereinstellungen")
-date_range = st.sidebar.date_input(
+start_date, end_date = st.sidebar.date_input(
     "Wähle den Zeitraum:",
-    value=(df["datetime"].min(), df["datetime"].max()),
-    min_value=df["datetime"].min(),
-    max_value=df["datetime"].max(),
+    [df["datetime"].min().date(), df["datetime"].max().date()],
+    min_value=df["datetime"].min().date(),
+    max_value=df["datetime"].max().date(),
 )
 
-# Filter anwenden
-filtered_df = df[df["datetime"].between(pd.Timestamp(date_range[0]), pd.Timestamp(date_range[1]))]
+# Filter data
+filtered_df = df[df["datetime"].between(pd.Timestamp(start_date), pd.Timestamp(end_date))]
 
-# Zusätzliche Analyse-Optionen
-analysis_option = st.sidebar.selectbox(
-    "Wähle die Datenanalyse:",
-    [
-        "Artikelanzahl im Zeitverlauf",
-        "Artikelanzahl im Verhältnis zu allen Artikeln",
-    ],
-)
-
-# Visualisierungen
+# Main title
 st.title("Green Deal Data Explorer")
 st.success("Daten erfolgreich geladen!")
 
-if filtered_df.empty:
-    st.warning("Keine Daten im ausgewählten Zeitraum.")
-else:
-    if analysis_option == "Artikelanzahl im Zeitverlauf":
-        # Artikelanzahl im Zeitverlauf
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
-        ax.set_title("Artikelanzahl im Zeitverlauf")
-        ax.set_xlabel("Datum")
-        ax.set_ylabel("Artikelanzahl")
-        ax.legend()
-        ax.grid(True)
-        st.pyplot(fig)
+# Visualization 1: Articles over time
+st.header("Artikelanzahl im Zeitverlauf")
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
+ax.set_title("Artikelanzahl im Zeitverlauf")
+ax.set_xlabel("Datum")
+ax.set_ylabel("Anzahl der Artikel")
+ax.grid(True)
+st.pyplot(fig)
 
-    elif analysis_option == "Artikelanzahl im Verhältnis zu allen Artikeln":
-        # Artikelanzahl im Verhältnis zu allen Artikeln
-        filtered_df["relative_articles"] = filtered_df["Article Count"] / filtered_df["All Articles"]
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(filtered_df["datetime"], filtered_df["relative_articles"], label="Relativer Anteil", color="green")
-        ax.set_title("Relativer Anteil der Artikel im Zeitverlauf")
-        ax.set_xlabel("Datum")
-        ax.set_ylabel("Anteil der Artikel")
-        ax.legend()
-        ax.grid(True)
-        st.pyplot(fig)
-
-# Footer
-st.sidebar.markdown("Datenquelle: Green Deal Data Explorer")
+# Visualization 2: Articles vs Total Articles Ratio
+st.header("Verhältnis der Artikelanzahl zur Gesamtartikelanzahl")
+filtered_df["Article Ratio"] = filtered_df["Article Count"] / filtered_df["All Articles"]
+fig2, ax2 = plt.subplots(figsize=(10, 6))
+ax2.plot(filtered_df["datetime"], filtered_df["Article Ratio"], label="Artikelverhältnis", color="green")
+ax2.set_title("Verhältnis der Artikelanzahl zur Gesamtartikelanzahl")
+ax2.set_xlabel("Datum")
+ax2.set_ylabel("Verhältnis")
+ax2.grid(True)
+st.pyplot(fig2)
