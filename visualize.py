@@ -8,6 +8,7 @@ import seaborn as sns
 def load_data():
     df = pd.read_csv("green_deal_data.csv")
     df["datetime"] = pd.to_datetime(df["datetime"], utc=True, errors="coerce")
+    df = df.dropna(subset=["datetime"])  # Entferne ungültige Datumsangaben
     return df
 
 def aggregate_data(df, days):
@@ -93,4 +94,3 @@ if event_display:
 # Gefilterte und aggregierte Daten anzeigen
 st.subheader("Gefilterte und aggregierte Daten")
 st.write(df_aggregated)
-
