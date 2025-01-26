@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Daten laden
-@st.cache
+@st.cache_data
 def load_data():
     df = pd.read_csv("green_deal_data.csv")
     df["datetime"] = pd.to_datetime(df["datetime"], utc=True, errors="coerce")
@@ -14,7 +14,7 @@ def aggregate_data(df, days):
     df["datetime"] = df["datetime"].dt.floor(f"{days}D")
     return df.groupby("datetime").agg({"Article Count": "sum", "All Articles": "sum"}).reset_index()
 
-# Daten laden
+# Streamlit App
 st.title("Green Deal Data Explorer")
 
 # Daten einlesen
@@ -49,11 +49,12 @@ EVENTS = [
     {"date": "2021-11-01", "event": "COP26 in Glasgow"},
     {"date": "2022-10-30", "event": "Parlamentswahlen in Brasilien"},
     {"date": "2023-09-01", "event": "G20-Klimagipfel"},
+    # Weitere Ereignisse können hier hinzugefügt werden
 ]
 
 # Daten filtern und aggregieren
 try:
-    df_filtered = df[(df["datetime"] >= pd.to_datetime(date_range[0])) & (df["datetime"] <= pd.to_datetime(date_range[1]))]
+    df_filtered = df[(df["datetime"] >= pd.to_datetime(date_range[0], utc=True)) & (df["datetime"] <= pd.to_datetime(date_range[1], utc=True))]
     df_aggregated = aggregate_data(df_filtered.copy(), aggregation)
 except Exception as e:
     st.error(f"Fehler bei der Datenverarbeitung: {e}")
@@ -61,7 +62,7 @@ except Exception as e:
 
 # Diagramm "Artikelanzahl im Zeitverlauf"
 st.subheader("Artikelanzahl im Zeitverlauf")
-plt.figure(figsize=(12, 6))
+plt.figure(figsize=(16, 8))  # Vergrößertes Diagramm
 plt.plot(df_aggregated["datetime"], df_aggregated["Article Count"], label="Artikelanzahl", color="blue")
 if trendline_display:
     sns.regplot(
@@ -72,16 +73,22 @@ if trendline_display:
         color="red",
     )
 if event_display:
-    for event in EVENTS:
-        event_date = pd.to_datetime(event["date"])
+    for i, event in enumerate(EVENTS, start=1):
+        event_date = pd.to_datetime(event["date"], utc=True)
         if date_range[0] <= event_date.date() <= date_range[1]:
             plt.axvline(event_date, color="green", linestyle="--", linewidth=0.8)
+            plt.text(event_date, df_aggregated["Article Count"].max() * 0.8, str(i), rotation=90, verticalalignment="bottom", fontsize=8, color="green")
 plt.title("Artikelanzahl im Zeitverlauf")
 plt.xlabel("Datum")
 plt.ylabel("Artikelanzahl")
 plt.legend()
 plt.grid(True)
 st.pyplot(plt)
+
+# Ereignisliste anzeigen
+if event_display:
+    st.subheader("Ereignisliste")
+    st.write(pd.DataFrame(EVENTS).reset_index().rename(columns={"index": "Nr.", "date": "Datum", "event": "Ereignis"}))
 
 # Gefilterte und aggregierte Daten anzeigen
 st.subheader("Gefilterte und aggregierte Daten")
