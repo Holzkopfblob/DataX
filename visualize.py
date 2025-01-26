@@ -9,6 +9,7 @@ EVENTS = [
     {"date": "2019-05-26", "event": "Europawahl 2019"},
     {"date": "2019-07-07", "event": "Parlamentswahl in Griechenland"},
     {"date": "2019-12-12", "event": "Parlamentswahl im Vereinigten Königreich"},
+    {"date": "2021-12-15", "event": "UN-Klimakonferenz in Madrid (COP25) (02. Dezember - 15. Dezember 2019)"},
     {"date": "2020-01-31", "event": "Brexit – Austritt des Vereinigten Königreichs aus der EU"},
     {"date": "2020-03-11", "event": "WHO erklärt COVID-19 zur Pandemie"},
     {"date": "2021-07-29", "event": "Inkrafttreten des Europäischen Klimagesetzes"},
