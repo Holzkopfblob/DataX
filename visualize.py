@@ -75,7 +75,7 @@ if trendline_display:
 if event_display:
     for i, event in enumerate(EVENTS, start=1):
         event_date = pd.to_datetime(event["date"], utc=True)
-        if date_range[0] <= event_date.date() <= date_range[1]:
+        if pd.to_datetime(date_range[0], utc=True) <= event_date <= pd.to_datetime(date_range[1], utc=True):
             plt.axvline(event_date, color="green", linestyle="--", linewidth=0.8)
             plt.text(event_date, df_aggregated["Article Count"].max() * 0.8, str(i), rotation=90, verticalalignment="bottom", fontsize=8, color="green")
 plt.title("Artikelanzahl im Zeitverlauf")
@@ -93,3 +93,4 @@ if event_display:
 # Gefilterte und aggregierte Daten anzeigen
 st.subheader("Gefilterte und aggregierte Daten")
 st.write(df_aggregated)
+
