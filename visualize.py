@@ -2,79 +2,86 @@ import os
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
 
-# Daten laden
+# Funktion zum Laden der Daten
 def load_data():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     csv_path = os.path.join(script_dir, "green_deal_data.csv")
 
     if not os.path.exists(csv_path):
-        st.error(f"Die Datei 'green_deal_data.csv' wurde nicht gefunden. Bitte stellen Sie sicher, dass sie im gleichen Verzeichnis wie dieses Skript liegt.")
+        st.error(f"Die Datei 'green_deal_data.csv' wurde nicht gefunden. (Pfad: {csv_path})")
         st.stop()
 
     df = pd.read_csv(csv_path)
     df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
     return df
 
-data = load_data()
-
-# Dashboard-Überschrift
+# Streamlit-Anwendung
 st.title("Green Deal Data Dashboard")
-
-# Sidebar-Optionen
 st.sidebar.header("Einstellungen")
 
-# Zeitaggregation wählen
-aggregation = st.sidebar.selectbox(
-    "Wähle Zeitaggregation",
-    options=["Täglich", "Wöchentlich", "Monatlich", "Jährlich"],
-    index=0
+# Daten laden
+df = load_data()
+
+# Filter für Zeitraum
+st.sidebar.subheader("Zeitraum")
+min_date = df["datetime"].min().date()
+max_date = df["datetime"].max().date()
+selected_range = st.sidebar.date_input("Zeitraum auswählen:", [min_date, max_date], min_value=min_date, max_value=max_date)
+
+# Filter für Aggregation
+st.sidebar.subheader("Datenaggregation")
+aggregation_days = st.sidebar.number_input("Datenaggregation (Tage pro Datenpunkt):", min_value=1, max_value=365, value=1, step=1)
+
+# Ereignisse einblenden
+st.sidebar.subheader("Ereignisse")
+show_events = st.sidebar.checkbox("Ereignisse einblenden", value=True)
+
+# Trendlinie ein- und ausblenden
+st.sidebar.subheader("Trendlinie")
+show_trendline = st.sidebar.checkbox("Trendlinie anzeigen", value=True)
+
+# Filter anwenden
+filtered_df = df[(df["datetime"].dt.date >= selected_range[0]) & (df["datetime"].dt.date <= selected_range[1])]
+
+# Daten aggregieren
+filtered_df = (
+    filtered_df.set_index("datetime")
+    .resample(f"{aggregation_days}D")
+    .sum()
+    .reset_index()
 )
 
-# Ereignisse anzeigen
-event_toggle = st.sidebar.checkbox("Ereignisse anzeigen", value=False)
+# Visualisierung
+st.subheader("Zeitreihenanalyse")
+fig, ax = plt.subplots()
 
-# Regressionslinien-Option
-regression_toggle = st.sidebar.checkbox("Regressionslinie hinzufügen", value=False)
+# Zeitreihen-Daten plotten
+ax.plot(filtered_df["datetime"], filtered_df["Article Count"], label="Artikelanzahl", color="blue")
 
-# Zeitaggregation anwenden
-if aggregation == "Täglich":
-    df_agg = data
-elif aggregation == "Wöchentlich":
-    df_agg = data.resample("W", on="datetime").sum().reset_index()
-elif aggregation == "Monatlich":
-    df_agg = data.resample("M", on="datetime").sum().reset_index()
-elif aggregation == "Jährlich":
-    df_agg = data.resample("Y", on="datetime").sum().reset_index()
+# Trendlinie hinzufügen
+if show_trendline:
+    z = np.polyfit(filtered_df.index, filtered_df["Article Count"], 1)
+    p = np.poly1d(z)
+    ax.plot(filtered_df["datetime"], p(filtered_df.index), label="Trendlinie", linestyle="--", color="orange")
 
-# Ereignisse
-events = [
-    {"date": "2019-12-11", "event": "Verabschiedung EU Green Deal"},
-    {"date": "2021-11-01", "event": "COP26 in Glasgow"},
-    {"date": "2022-11-06", "event": "COP27 in Sharm El-Sheikh"}
-]
-
-# Plot erstellen
-fig, ax = plt.subplots(figsize=(10, 6))
-
-sns.lineplot(data=df_agg, x="datetime", y="Article Count", ax=ax, label="Artikelanzahl")
-
-if event_toggle:
+# Ereignisse hinzufügen
+if show_events:
+    events = [
+        {"date": "2020-12-11", "event": "Einführung des EU-Klimaziels 2030"},
+        {"date": "2021-07-14", "event": "Fit-for-55-Paket vorgestellt"},
+        {"date": "2022-11-06", "event": "COP27 Klimakonferenz"},
+    ]
     for event in events:
         event_date = pd.to_datetime(event["date"])
-        ax.axvline(event_date, color="red", linestyle="--", alpha=0.7)
-        ax.text(event_date, ax.get_ylim()[1] * 0.9, event["event"], color="red", rotation=90, fontsize=10)
+        if selected_range[0] <= event_date.date() <= selected_range[1]:
+            ax.axvline(event_date, color="red", linestyle="--", alpha=0.7)
+            ax.text(event_date, ax.get_ylim()[1] * 0.9, event["event"], rotation=90, verticalalignment="bottom", fontsize=8)
 
-if regression_toggle:
-    sns.regplot(data=df_agg, x=df_agg["datetime"].map(pd.Timestamp.toordinal), y="Article Count", scatter=False, ax=ax, color="green", label="Regressionslinie")
-
-ax.set_title("Artikelanzahl im Zeitverlauf")
+# Diagramm anpassen
+ax.set_title("Artikelanzahl im Zeitverlauf (Green Deal)")
 ax.set_xlabel("Datum")
-ax.set_ylabel("Anzahl der Artikel")
+ax.set_ylabel("Artikelanzahl")
 ax.legend()
-
 st.pyplot(fig)
-
-# Tabelle der aggregierten Daten anzeigen
-st.write("### Aggregierte Daten", df_agg)
