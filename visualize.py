@@ -1,102 +1,93 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.dates import DateFormatter
+import altair as alt
 
-# Ereignisse für die Visualisierung
-events = {
-    "2020-12-12": "Paris Agreement 5th Anniversary",
-    "2021-11-01": "COP26 in Glasgow",
-    "2022-11-06": "COP27 in Sharm El-Sheikh",
-    "2023-10-01": "EU Emission Reduction Target Updated",
-    "2024-06-06": "European Green Deal Summit",
-}
-
-# Funktion zum Laden der Daten
-@st.cache
 def load_data():
-    url = "https://raw.githubusercontent.com/Holzkopfblob/DataX/main/green_deal_data.csv"
-    df = pd.read_csv(url)
-    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+    """Load and preprocess the data."""
+    # Load data
+    df = pd.read_csv("green_deal_data.csv")
+
+    # Convert datetime column to datetime format with UTC
+    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce", utc=True)
+
     return df
 
-# Dashboard-Konfiguration
-st.title("Green Deal Media Analysis Dashboard")
-st.sidebar.header("Filter Optionen")
+def filter_and_aggregate_data(df, date_range, aggregation):
+    """Filter and aggregate data based on user input."""
+    # Ensure the date_range is timezone-aware
+    start_date = pd.to_datetime(date_range[0]).tz_localize("UTC")
+    end_date = pd.to_datetime(date_range[1]).tz_localize("UTC")
 
-# Daten laden
-df = load_data()
+    # Filter data by date range
+    df_filtered = df[(df["datetime"] >= start_date) & (df["datetime"] <= end_date)]
 
-# Zeitauswahl
-default_date_range = [df["datetime"].min(), df["datetime"].max()]
-date_range = st.sidebar.date_input("Zeitraum", value=default_date_range, 
-                                   min_value=default_date_range[0], max_value=default_date_range[1])
-
-# Aggregationsoptionen
-aggregation = st.sidebar.number_input("Aggregation (Tage pro Datenpunkt)", min_value=1, max_value=365, value=1)
-
-# Ereignisse anzeigen oder ausblenden
-show_events = st.sidebar.checkbox("Ereignisse anzeigen", value=True)
-
-# Trendlinie ein-/ausblenden
-show_trend = st.sidebar.checkbox("Trendlinie anzeigen", value=True)
-
-# Daten filtern
-try:
-    df_filtered = df[(df["datetime"] >= pd.to_datetime(date_range[0])) &
-                     (df["datetime"] <= pd.to_datetime(date_range[1]))]
-
-    # Stelle sicher, dass "datetime" korrekt ist
-    if not pd.api.types.is_datetime64_any_dtype(df_filtered["datetime"]):
-        df_filtered["datetime"] = pd.to_datetime(df_filtered["datetime"], errors="coerce")
-
-    # Entferne ungültige Datumswerte
-    df_filtered = df_filtered.dropna(subset=["datetime"])
-
-    # Aggregiere die Daten
+    # Aggregate data
     df_filtered["datetime"] = df_filtered["datetime"].dt.to_period(f"{aggregation}D").dt.start_time
-    df_agg = df_filtered.groupby("datetime").agg({"Article Count": "sum", "All Articles": "sum"}).reset_index()
-    df_agg["Ratio"] = df_agg["Article Count"] / df_agg["All Articles"]
+    df_aggregated = df_filtered.groupby("datetime").sum().reset_index()
 
-    # Visualisierung
-    fig, ax = plt.subplots(figsize=(12, 6))
+    return df_aggregated
 
-    ax.bar(df_agg["datetime"], df_agg["Article Count"], label="Artikelanzahl", color="blue", alpha=0.7)
-    ax.set_ylabel("Artikelanzahl", color="blue")
-    ax.tick_params(axis="y", labelcolor="blue")
+def plot_data(df, events, show_trend, show_events):
+    """Plot the data with optional trend line and events."""
+    # Create base chart
+    base = alt.Chart(df).mark_line().encode(
+        x="datetime:T",
+        y="Article Count:Q",
+        tooltip=["datetime:T", "Article Count:Q"]
+    ).properties(title="Artikelanzahl im Zeitverlauf")
 
-    # Zweite Achse für das Verhältnis
-    ax2 = ax.twinx()
-    ax2.plot(df_agg["datetime"], df_agg["Ratio"], label="Verhältnis Artikel/Alle Artikel", color="green")
-    ax2.set_ylabel("Verhältnis", color="green")
-    ax2.tick_params(axis="y", labelcolor="green")
-
-    # Ereignisse einfügen
-    if show_events:
-        for event_date, event_name in events.items():
-            if pd.to_datetime(event_date) in df_agg["datetime"].values:
-                ax.axvline(pd.to_datetime(event_date), color="red", linestyle="--", linewidth=1, alpha=0.7)
-                ax.text(pd.to_datetime(event_date), ax.get_ylim()[1] * 0.9, str(event_date),
-                        rotation=90, verticalalignment="top", color="red")
-
-    # Trendlinie
+    # Add trend line if selected
     if show_trend:
-        z = pd.np.polyfit(df_agg.index, df_agg["Article Count"], 1)
-        p = pd.np.poly1d(z)
-        ax.plot(df_agg["datetime"], p(df_agg.index), color="orange", linestyle="--", label="Trendlinie")
+        trend = base.transform_regression("datetime", "Article Count").mark_line(color="red")
+        base = base + trend
 
-    ax.set_title("Green Deal Medienanalyse")
-    ax.set_xlabel("Datum")
-    ax.legend(loc="upper left")
-    ax2.legend(loc="upper right")
-
-    st.pyplot(fig)
-
-    # Ereignisliste anzeigen
+    # Add events as vertical lines if selected
     if show_events:
-        st.subheader("Ereignisliste")
-        for i, (event_date, event_name) in enumerate(events.items(), start=1):
-            st.write(f"{i}. {event_date}: {event_name}")
+        events_chart = alt.Chart(pd.DataFrame(events)).mark_rule(color="green").encode(
+            x="date:T",
+            tooltip=["date:T", "description:N"]
+        )
+        base = base + events_chart
 
-except Exception as e:
-    st.error(f"Fehler bei der Datenverarbeitung: {e}")
+    return base
+
+def main():
+    st.title("Green Deal Media Coverage Dashboard")
+
+    # Load data
+    df = load_data()
+
+    # Sidebar options
+    st.sidebar.header("Filtereinstellungen")
+    date_range = st.sidebar.date_input("Zeitraum auswählen", [df["datetime"].min().date(), df["datetime"].max().date()])
+    aggregation = st.sidebar.number_input("Aggregation (in Tagen)", min_value=1, max_value=365, value=7, step=1)
+    show_trend = st.sidebar.checkbox("Trendlinie anzeigen", value=True)
+    show_events = st.sidebar.checkbox("Ereignisse anzeigen", value=True)
+
+    # Events (example data)
+    events = [
+        {"date": "2019-12-11", "description": "European Green Deal vorgestellt"},
+        {"date": "2020-03-11", "description": "COVID-19 Pandemie ausgerufen"},
+        {"date": "2021-11-01", "description": "COP26 Klimakonferenz"},
+        {"date": "2023-06-01", "description": "Neues Klimagesetz verabschiedet"},
+    ]
+
+    # Filter and aggregate data
+    df_aggregated = filter_and_aggregate_data(df, date_range, aggregation)
+
+    # Display data
+    st.write("### Gefilterte und aggregierte Daten", df_aggregated)
+
+    # Plot data
+    chart = plot_data(df_aggregated, events, show_trend, show_events)
+    st.altair_chart(chart, use_container_width=True)
+
+    # Show event legend if events are displayed
+    if show_events:
+        st.write("### Ereignisse")
+        events_df = pd.DataFrame(events)
+        st.write(events_df)
+
+if __name__ == "__main__":
+    main()
