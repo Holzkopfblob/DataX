@@ -6,11 +6,35 @@ import matplotlib.dates as mdates
 
 # Beispiel-Ereignisliste
 EVENTS = [
-    {"date": "2019-05-26", "event": "EU-Parlamentswahl"},
-    {"date": "2021-11-01", "event": "COP26 in Glasgow"},
-    {"date": "2022-02-24", "event": "Beginn des Ukraine-Kriegs"},
-    {"date": "2023-09-01", "event": "G20-Klimagipfel"},
+    {"date": "2019-05-26", "event": "Europawahl 2019"},
+    {"date": "2019-07-07", "event": "Parlamentswahl in Griechenland"},
+    {"date": "2019-12-12", "event": "Parlamentswahl im Vereinigten Königreich"},
+    {"date": "2020-01-31", "event": "Brexit – Austritt des Vereinigten Königreichs aus der EU"},
+    {"date": "2020-03-11", "event": "WHO erklärt COVID-19 zur Pandemie"},
+    {"date": "2021-07-29", "event": "Inkrafttreten des Europäischen Klimagesetzes"},
+    {"date": "2021-10-31", "event": "UN-Klimakonferenz in Glasgow (COP26) (31. Oktober – 12. November 2021)"},
+    {"date": "2022-02-24", "event": "Beginn des Ukraine-Konflikts"},
+    {"date": "2022-04-10", "event": "Präsidentschaftswahl in Frankreich (1. Runde)"},
+    {"date": "2022-04-24", "event": "Präsidentschaftswahl in Frankreich (2. Runde)"},
+    {"date": "2022-11-06", "event": "UN-Klimakonferenz in Sharm El-Sheikh (COP27) (6. – 18. November 2022)"},
+    {"date": "2022-11-08", "event": "Zwischenwahlen in den USA"},
+    {"date": "2023-01-15", "event": "Parlamentswahl in Schweden"},
+    {"date": "2023-03-13", "event": "Verabschiedung des EU-Klimaanpassungsgesetzes"},
+    {"date": "2023-03-05", "event": "Parlamentswahl in Estland"},
+    {"date": "2023-04-30", "event": "Parlamentswahl in Finnland"},
+    {"date": "2023-11-30", "event": "UN-Klimakonferenz in Dubai (COP28) (30. November – 12. Dezember 2023)"},
+    {"date": "2023-07-23", "event": "Parlamentswahl in Spanien"},
+    {"date": "2023-10-08", "event": "Parlamentswahl in Luxemburg"},
+    {"date": "2023-10-13", "event": "Parlamentswahl in Polen"},
+    {"date": "2024-05-26", "event": "Europawahl 2024"},
+    {"date": "2024-06-09", "event": "Parlamentswahl in Belgien"},
+    {"date": "2024-06-09", "event": "Parlamentswahl in Litauen"},
+    {"date": "2024-09-29", "event": "Parlamentswahl in Österreich"},
+    {"date": "2024-10-27", "event": "Parlamentswahl in Portugal"},
+    {"date": "2024-11-03", "event": "Parlamentswahl in Rumänien"},
+    {"date": "2024-11-30", "event": "UN-Klimakonferenz in Baku (COP29) (30. November – 12. Dezember 2024)"}
 ]
+
 
 @st.cache_data
 def load_data(csv_file: str) -> pd.DataFrame:
